@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "B055UHFXDzN1SBud06YwPyJ+fXTdTFkJflyUg59+ImAslP1nzGjfkV6CoWVqvbQGrtcCmWxBhEuAFAXF9vjnag==",
+  "success": true,
+  "projectFilePath": "/home/nathan/Documents/Programming/Projects/Chip8 Emu/Chip8 Emu.csproj",
+  "expectedPackageFiles": [
+    "/home/nathan/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.1/microsoft.aspnetcore.app.ref.8.0.1.nupkg.sha512"
+  ],
+  "logs": []
+}
