@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Chip8 Emu")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+224963bc5365e2aa0429fa3b81e44c83f9f51166")]
 [assembly: System.Reflection.AssemblyProductAttribute("Chip8 Emu")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Chip8 Emu")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
