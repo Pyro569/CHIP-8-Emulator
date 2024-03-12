@@ -54,10 +54,10 @@ namespace Chip8
                     //decodeOpCode(currentOpcode);
                 }
 
+                //set a stopwatch timer so that way the emulator is locked at 60fps
                 Stopwatch timer = new Stopwatch();
                 timer.Start();
-
-                while (timer.Elapsed <= TimeSpan.FromSeconds(1)) ;
+                while (timer.Elapsed < TimeSpan.FromSeconds(1000 / 60)) ;
             }
         }
 
