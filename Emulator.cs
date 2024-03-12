@@ -9,6 +9,8 @@ namespace Chip8
         static string programContent = "";
         static string currentOpcode;
 
+        static int targettedFPS = 60;
+
         public static bool emulating;
 
         public static List<List<int>> screen = new List<List<int>>();
@@ -28,7 +30,7 @@ namespace Chip8
             programContent = Convert.ToHexString(bytes);
 
             //create the screen list through some magic math
-            for (int i = 0; i < 32; i++)
+            for (int i = 0; i < 33; i++)
             {
                 List<int> row = new List<int>();
                 for (int k = 0; k < 65; k++)
@@ -36,44 +38,45 @@ namespace Chip8
                 screen.Add(row);
             }
 
+
             replacePixel(0, 64, 1);
+            drawScreen();
 
-            while (emulating)
+            Stopwatch timer = new Stopwatch();
+            timer.Start();
+            while (timer.Elapsed < TimeSpan.FromSeconds(1)) ;
+
+            for (int i = 0; i < programContent.Length; i++)
             {
-                Console.Clear();
-                drawScreen();
+                currentOpcode = programContent[i] + "" + programContent[i + 1];
+                //currentOpcode += programContent[i + 1];
+                //increment i to account for the extra pc counter & increment pc
+                i += 1;
+                pc += 2;
 
-                for (int i = 0; i < programContent.Length; i++)
-                {
-                    currentOpcode = programContent[i] + "" + programContent[i + 1];
-                    //currentOpcode += programContent[i + 1];
-                    //increment i to account for the extra pc counter & increment pc
-                    i += 1;
-                    pc += 2;
-
-                    //decodeOpCode(currentOpcode);
-                }
-
-                //set a stopwatch timer so that way the emulator is locked at 60fps
-                Stopwatch timer = new Stopwatch();
-                timer.Start();
-                while (timer.Elapsed < TimeSpan.FromSeconds(1000 / 60)) ;
+                decodeOpCode(currentOpcode);
             }
         }
 
         public static void decodeOpCode(string opcode)
         {
-            switch (opcode)
+            switch (opcode[0])
             {
-                case "E0":
-                    Console.Clear();
-                    Console.WriteLine("Clearing screen...");
+                case 'E':
+                    if (opcode[1] == '0')
+                    {
+                        Console.Clear();
+                        Console.WriteLine("Clearing screen...");
+                    }
+                    break;
+                case '0':
                     break;
             }
         }
 
         public static void drawScreen()
         {
+            Console.Clear();
             for (int i = 0; i < screen.Count; i++)
             {
                 for (int k = 0; k < screen[i].Count; k++)
