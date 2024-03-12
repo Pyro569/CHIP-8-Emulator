@@ -30,10 +30,10 @@ namespace Chip8
             programContent = Convert.ToHexString(bytes);
 
             //create the screen list through some magic math
-            for (int i = 0; i < 33; i++)
+            for (int i = 0; i < 32; i++)
             {
                 List<int> row = new List<int>();
-                for (int k = 0; k < 65; k++)
+                for (int k = 0; k < 64; k++)
                     row.Add(0);
                 screen.Add(row);
             }
