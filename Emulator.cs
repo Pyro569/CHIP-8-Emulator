@@ -39,7 +39,8 @@ namespace Chip8
             }
 
 
-            replacePixel(0, 64, 1);
+            //replace the last pixel temporarily as a test to make sure the screen stuff works
+            replacePixel(64, 0, 1);
             drawScreen();
 
             Stopwatch timer = new Stopwatch();
@@ -90,7 +91,7 @@ namespace Chip8
 
         public static void replacePixel(int px, int py, int status)
         {
-            screen[px][py] = status;
+            screen[py][px] = status;
         }
     }
 }
