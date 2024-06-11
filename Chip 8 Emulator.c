@@ -71,14 +71,10 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
         uint16_t target = ((code[0] & 0xf) << 8) | code[1];
         if (target == pc)
         {
-            printf("\nINF LOOP       HALTING\n");
+            printf("\nINFINITE LOOP  HALTING");
             chip8->halt = 1;
-            // while (1)
-            //{
-            // }
         }
-        pc = ((code[0] & 0xf) << 8) | code[1];
-        opbytes = 2;
+        pc = target;
         break;
     case 0x2:
         chip8->sp -= 2;
@@ -169,7 +165,9 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
         break;
     case 0x9:
         printf("JMP    NE");
-        if (code[0] & 0xf != (code[1] & 0xf0) >> 4)
+        uint8_t reg1 = code[0] & 0xf;
+        uint8_t reg2 = (code[1] & 0xf0) >> 4;
+        if (chip8->V[reg1] != chip8->V[reg2])
         {
             opbytes = 4;
         }
@@ -192,8 +190,6 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
         int x = chip8->V[code[0] & 0xf];
         int y = chip8->V[(code[1] & 0xf0) >> 4];
 
-        printf("\nVX: %d, VY: %d", x, code[1] & 0xf);
-
         chip8->V[0xF] = 0;
         int height = code[1] & 0xf;
         for (int yline = 0; yline < height; yline++)
@@ -202,9 +198,9 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
             for (int i = 0; i < 8; i++)
             {
                 if (pixel & (0x80 >> i))
-                {                                     // Check each bit in the current byte
-                    int screenX = x + i;              // Adjusted calculation for screenX
-                    int screenY = y - yline + height; // Adjusted initialization of screenY
+                {
+                    int screenX = x + i;
+                    int screenY = y - yline + height;
                     setPixel(screenX, screenY);
                 }
             }
@@ -246,11 +242,17 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
             chip8->soundTimer = code[0] & 0xf;
             break;
         case 0x1e:
-            chip8->I = chip8->I + (code[0] & 0xf);
+            chip8->I = chip8->I + chip8->V[code[0] & 0xf];
             break;
         case 0x29:
             printf("SPRITECHAR");
             chip8->I = FONT_BASE + (chip8->V[code[1] & 0xf]);
+            break;
+        case 0x65:
+            uint8_t reg = code[0] & 0xf;
+            for (int i = 0; i <= reg; i++)
+                chip8->V[i] = chip8->memory[chip8->I + i];
+            chip8->I += (reg + 1);
             break;
         }
         break;
