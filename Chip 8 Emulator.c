@@ -2,9 +2,11 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <GL/gl.h>
-#include <GL/glut.h>
+#include <GL/freeglut.h>
 #include <string.h>
 #include <unistd.h>
+
+#include "Chip 8 Config.c"
 #include "Chip 8 Font.c"
 
 #define FONT_BASE 0
@@ -311,11 +313,15 @@ void *emulatorDisplay(int argc, char **argv)
 
     uint32_t timeSlept = 0;
 
+    iniSettings _iniSettings;
+    parseINI("config.ini");
+    configureEmulator(&_iniSettings);
+
     while (pc < pos && chip8->halt != 1)
     {
         pc += Emulate(chip8, chip8->memory, pc, chip8->memory, pos);
-        usleep(1000000 / 700);
-        timeSlept += 1000000 / 700;
+        usleep(1000000 / _iniSettings.ispsLimit);
+        timeSlept += 1000000 / _iniSettings.ispsLimit;
         if (timeSlept % 1000000 == 0)
         {
             chip8->delayTimer -= 60;
