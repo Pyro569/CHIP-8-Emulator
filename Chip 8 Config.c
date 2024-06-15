@@ -93,11 +93,9 @@ void configureEmulator(iniSettings *_iniSettings)
             if (tokens[i + 1] != NULL)
             {
                 _iniSettings->ispsLimit = atoi(tokens[i + 1]);
-                printf("Parsed ispsLimit: %d\n", _iniSettings->ispsLimit);
             }
             else
             {
-                printf("Error: No value found for ispsLimit\n");
                 _iniSettings->ispsLimit = 700;
             }
         }
