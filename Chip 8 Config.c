@@ -9,6 +9,13 @@
 typedef struct
 {
     int ispsLimit;
+    int super;
+    int offR;
+    int offG;
+    int offB;
+    int onR;
+    int onG;
+    int onB;
 } iniSettings;
 
 char *tokens[255];
@@ -39,8 +46,9 @@ void parseINI(char *filename)
         FILE *file = fopen("config.ini", "w");
         if (file)
         {
-            fprintf(file, "%s", "ispsLimit=700\nsuper=0");
+            fprintf(file, "%s", "ispsLimit=700\nsuper=0\noffRGB=0 0 0\nonRGB=1 1 1");
             fclose(file);
+            usleep(3000000);
             parseINI("config.ini");
         }
         else
@@ -50,38 +58,20 @@ void parseINI(char *filename)
         }
     }
 
-    // do the tokenization
-    printf("Found emulator config file: \n\n");
-
-    // initialize important stuffs
-    char *token = malloc(255);
-    int tokenIndex = 0;
-    char *_tokens[255];
+    // tokenize the ini file by spaces, equals and null terminations
+    char *token;
     int tokenCount = 0;
 
-    for (int i = 0; buffer[i] != '\0'; i++)
+    token = strtok(buffer, "= \n");
+    while (token != NULL)
     {
-        printf("%c", buffer[i]);
-        if (buffer[i] != '=')
-        {
-            token[tokenIndex] = buffer[i];
-            tokenIndex++;
-        }
-        if (buffer[i + 1] == '\0' || buffer[i] == '=')
-        {
-            _tokens[tokenCount] = malloc((tokenIndex + 1) * sizeof(char));
-            strcpy(_tokens[tokenCount], token);
-            tokenCount++;
-
-            memset(token, 0, sizeof(token));
-            tokenIndex = 0;
-        }
+        tokens[tokenCount] = malloc(strlen(token) + 1);
+        strcpy(tokens[tokenCount], token);
+        tokenCount++;
+        token = strtok(NULL, "= \n");
     }
-    printf("\n\n");
+    tokens[tokenCount] = NULL;
     free(buffer);
-
-    for (int i = 0; i < tokenCount; i++)
-        tokens[i] = _tokens[i];
 }
 
 void configureEmulator(iniSettings *_iniSettings)
@@ -91,12 +81,46 @@ void configureEmulator(iniSettings *_iniSettings)
         if (strcmp(tokens[i], "ispsLimit") == 0)
         {
             if (tokens[i + 1] != NULL)
-            {
                 _iniSettings->ispsLimit = atoi(tokens[i + 1]);
+            else
+                _iniSettings->ispsLimit = 700;
+        }
+        else if (strcmp(tokens[i], "super") == 0)
+        {
+            if (tokens[i + 1] != NULL)
+                _iniSettings->super = atoi(tokens[i + 1]);
+            else
+                _iniSettings->super = 0;
+        }
+        else if (strcmp(tokens[i], "offRGB") == 0)
+        {
+            if (tokens[i + 3] != NULL)
+            {
+                _iniSettings->offR = atoi(tokens[i + 1]);
+                _iniSettings->offG = atoi(tokens[i + 2]);
+                _iniSettings->offB = atoi(tokens[i + 3]);
+                printf("%d", _iniSettings->offB);
             }
             else
             {
-                _iniSettings->ispsLimit = 700;
+                _iniSettings->offR = 0;
+                _iniSettings->offG = 0;
+                _iniSettings->offB = 0;
+            }
+        }
+        else if (strcmp(tokens[i], "onRGB") == 0)
+        {
+            if (tokens[i + 3] != NULL)
+            {
+                _iniSettings->onR = atoi(tokens[i + 1]);
+                _iniSettings->onG = atoi(tokens[i + 2]);
+                _iniSettings->onB = atoi(tokens[i + 3]);
+            }
+            else
+            {
+                _iniSettings->onR = 1;
+                _iniSettings->onG = 1;
+                _iniSettings->onB = 1;
             }
         }
     }

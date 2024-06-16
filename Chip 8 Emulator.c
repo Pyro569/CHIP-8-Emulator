@@ -27,9 +27,11 @@ typedef struct Chip8
     uint8_t soundTimer;
 } Chip8;
 
+iniSettings *_configuredINI;
+
 void setPixel(int x, int y)
 {
-    glColor3f(1, 1, 1);
+    glColor3f(_configuredINI->onR, _configuredINI->onG, _configuredINI->onB);
 
     glBegin(GL_POLYGON);
     glVertex2i(x, y);
@@ -250,6 +252,24 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
             printf("SPRITECHAR");
             chip8->I = FONT_BASE + (chip8->V[code[1] & 0xf]);
             break;
+        case 0x33:
+            uint8_t ones, tens, hundreds;
+            uint8_t value = chip8->V[reg];
+            ones = value % 10;
+            value = value / 10;
+            tens = value % 10;
+            hundreds = value / 10;
+            chip8->memory[chip8->I] = hundreds;
+            chip8->memory[chip8->I + 1] = tens;
+            chip8->memory[chip8->I + 2] = ones;
+            break;
+        case 0x55:
+            int i;
+            reg = code[0] & 0xf;
+            for (i = 0; i <= reg; i++)
+                memory[chip8->I + i] = chip8->V[i];
+            chip8->I += (reg + 1);
+            break;
         case 0x65:
             uint8_t reg = code[0] & 0xf;
             for (int i = 0; i <= reg; i++)
@@ -307,15 +327,16 @@ void *emulatorDisplay(int argc, char **argv)
     }
     fclose(file);
 
-    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-    glFlush();
-
     uint32_t timeSlept = 0;
 
     iniSettings _iniSettings;
     parseINI("config.ini");
     configureEmulator(&_iniSettings);
+    _configuredINI = &_iniSettings;
+
+    glClearColor((float)_configuredINI->offR, (float)_configuredINI->offG, (float)_configuredINI->offB, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glFlush();
 
     while (pc < pos && chip8->halt != 1)
     {
