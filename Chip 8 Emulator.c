@@ -51,6 +51,8 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
     int opbytes = 2;
 
     uint8_t reg;
+    uint8_t reg1;
+    uint8_t reg2;
 
     printf("%04x %02x %02x     ", pc, code[0], code[1]);
     switch (firstnib)
@@ -72,13 +74,14 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
         break;
     case 0x1:
         printf("JUMP   $%01x%02x", code[0] & 0xf, code[1]);
-        uint16_t target = ((code[0] & 0xf) << 8) | code[1];
+        uint16_t target = (memory[pc] << 8 | memory[pc + 1]) & 0x0FFF;
         if (target == pc)
         {
             printf("\nINFINITE LOOP  HALTING");
             chip8->halt = 1;
         }
-        pc = target;
+        int leftovers = target - pc;
+        opbytes = leftovers;
         break;
     case 0x2:
         chip8->sp -= 2;
@@ -98,7 +101,9 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
         break;
     case 0x5:
         printf("JMP    EQ");
-        if (chip8->V[code[0] & 0xf] == chip8->V[(code[1] & 0xf0) >> 4])
+        reg1 = code[0] & 0xf;
+        reg2 = (code[1] & 0xf0) >> 4;
+        if (chip8->V[reg1] == chip8->V[reg2])
             opbytes = 4;
         break;
     case 0x6:
@@ -169,8 +174,8 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
         break;
     case 0x9:
         printf("JMP    NE");
-        uint8_t reg1 = code[0] & 0xf;
-        uint8_t reg2 = (code[1] & 0xf0) >> 4;
+        reg1 = code[0] & 0xf;
+        reg2 = (code[1] & 0xf0) >> 4;
         if (chip8->V[reg1] != chip8->V[reg2])
         {
             opbytes = 4;
@@ -204,7 +209,7 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
                 if (pixel & (0x80 >> i))
                 {
                     int screenX = x + i;
-                    int screenY = y - yline + height;
+                    int screenY = y + yline + 1;
                     setPixel(screenX, screenY);
                 }
             }
@@ -235,9 +240,7 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
         case 0x0a:
             chip8->waiting_for_key = 1;
             chip8->keyRegister == code[0] & 0xf;
-            while (chip8->waiting_for_key == 1)
-            {
-            }
+            pc = -2;
             break;
         case 0x15:
             chip8->delayTimer = code[0] & 0xf;
@@ -507,7 +510,7 @@ void initWindow(int argc, char **argv)
     glutInitWindowPosition(GLUT_SCREEN_WIDTH / 2, GLUT_SCREEN_HEIGHT / 2);
     glutCreateWindow("Pyro569's Chip-8 Emulator");
     glLoadIdentity();
-    glOrtho(0, 64, 0, 32, -1.0, 1.0);
+    glOrtho(0, 64, 32, 0, -1.0, 1.0);
     glutDisplayFunc(emulatorDisplay(argc, argv));
     glutKeyboardFunc(keyDown);
     glutKeyboardUpFunc(keyUp);
