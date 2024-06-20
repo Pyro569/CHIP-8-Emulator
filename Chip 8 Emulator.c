@@ -15,6 +15,8 @@
 typedef struct Chip8
 {
     uint8_t V[16];
+    int pc;
+    int pos;
     uint16_t sp;
     uint16_t I;
     uint8_t halt;
@@ -25,13 +27,16 @@ typedef struct Chip8
     uint8_t keyRegister;
     uint8_t delayTimer;
     uint8_t soundTimer;
+    uint32_t timeSlept;
+    iniSettings _iniSettings;
 } Chip8;
 
+Chip8 *_chip8;
 iniSettings *_configuredINI;
 
 void setPixel(int x, int y)
 {
-    glColor3f(_configuredINI->onR, _configuredINI->onG, _configuredINI->onB);
+    glColor3f(_chip8->_iniSettings.onR, _chip8->_iniSettings.onG, _chip8->_iniSettings.onB);
 
     glBegin(GL_POLYGON);
     glVertex2i(x, y);
@@ -68,7 +73,7 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
             printf("RET");
             uint16_t target = (chip8->memory[chip8->sp] << 8) | chip8->memory[chip8->sp + 1];
             chip8->sp += 2;
-            pc = target;
+            chip8->pc = target;
             break;
         }
         break;
@@ -85,8 +90,8 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
         break;
     case 0x2:
         chip8->sp -= 2;
-        memory[chip8->sp] = ((pc + 2) & 0xFF00) >> 8;
-        memory[chip8->sp + 1] = (pc + 2) & 0xFF;
+        chip8->memory[chip8->sp] = ((pc + 2) & 0xFF00) >> 8;
+        chip8->memory[chip8->sp + 1] = (pc + 2) & 0xFF;
         pc = ((code[0] & 0xf) << 8) | code[1];
         break;
     case 0x3:
@@ -237,10 +242,13 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
         reg = code[0] & 0xf;
         switch (code[1])
         {
+        case 0x07:
+            chip8->V[code[0] & 0xf] = chip8->delayTimer;
+            break;
         case 0x0a:
             chip8->waiting_for_key = 1;
             chip8->keyRegister == code[0] & 0xf;
-            pc = -2;
+            pc = 0;
             break;
         case 0x15:
             chip8->delayTimer = code[0] & 0xf;
@@ -291,7 +299,6 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
 
     return opbytes;
 }
-Chip8 *_chip8;
 
 void *emulatorDisplay(int argc, char **argv)
 {
@@ -301,8 +308,7 @@ void *emulatorDisplay(int argc, char **argv)
         exit(0);
     }
 
-    Chip8 *chip8 = malloc(sizeof(chip8));
-    _chip8 = chip8;
+    Chip8 *chip8 = malloc(sizeof(Chip8));
 
     if (chip8 == NULL)
     {
@@ -318,38 +324,59 @@ void *emulatorDisplay(int argc, char **argv)
         exit(0);
     }
 
-    int pc = 0x200;
+    chip8->pc = 0x200;
     chip8->sp = 0xfa0;
     chip8->memory = calloc(1024 * 4, 1);
+    if (chip8->memory == NULL)
+    {
+        printf("Error: Unable to allocate memory\n");
+        free(chip8);
+        fclose(file);
+        exit(0);
+    }
     memcpy(&chip8->memory[FONT_SIZE], font4x5, FONT_SIZE);
 
-    int pos = 0x200;
-    while (fread(&chip8->memory[pos], 1, 1, file))
+    chip8->pos = 0x200;
+    while (fread(&chip8->memory[chip8->pos], 1, 1, file))
     {
-        pos++;
+        chip8->pos++;
     }
     fclose(file);
-
-    uint32_t timeSlept = 0;
 
     iniSettings _iniSettings;
     parseINI("config.ini");
     configureEmulator(&_iniSettings);
     _configuredINI = &_iniSettings;
+    chip8->_iniSettings = *_configuredINI;
+
+    chip8->timeSlept = 0;
 
     glClearColor((float)_configuredINI->offR, (float)_configuredINI->offG, (float)_configuredINI->offB, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     glFlush();
 
-    while (pc < pos && chip8->halt != 1)
+    _chip8 = chip8;
+}
+
+void display()
+{
+    glClearColor((float)_chip8->_iniSettings.offR, (float)_chip8->_iniSettings.offG, (float)_chip8->_iniSettings.offB, 1.0f);
+    glColor3f(_chip8->_iniSettings.onR, _chip8->_iniSettings.onG, _chip8->_iniSettings.onB);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glutSwapBuffers();
+}
+
+void emulateLoop()
+{
+    if (_chip8->pc < _chip8->pos && _chip8->halt != 1)
     {
-        pc += Emulate(chip8, chip8->memory, pc, chip8->memory, pos);
-        usleep(1000000 / _iniSettings.ispsLimit);
-        timeSlept += 1000000 / _iniSettings.ispsLimit;
-        if (timeSlept % 1000000 == 0)
+        _chip8->pc += Emulate(_chip8, _chip8->memory, _chip8->pc, _chip8->memory, _chip8->pos);
+        usleep(1000000 / _chip8->_iniSettings.ispsLimit);
+        _chip8->timeSlept += 1000000 / _chip8->_iniSettings.ispsLimit;
+        if (_chip8->timeSlept % 1000000 == 0)
         {
-            chip8->delayTimer -= 60;
-            chip8->soundTimer -= 60;
+            _chip8->delayTimer -= 60;
+            _chip8->soundTimer -= 60;
         }
     }
 }
@@ -504,6 +531,7 @@ void keyUp(unsigned char key, int x, int y)
 
 void initWindow(int argc, char **argv)
 {
+    emulatorDisplay(argc, argv);
     glutInit(&argc, argv);
     glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
     glutInitWindowSize(640, 320);
@@ -511,10 +539,11 @@ void initWindow(int argc, char **argv)
     glutCreateWindow("Pyro569's Chip-8 Emulator");
     glLoadIdentity();
     glOrtho(0, 64, 32, 0, -1.0, 1.0);
-    glutDisplayFunc(emulatorDisplay(argc, argv));
     glutKeyboardFunc(keyDown);
     glutKeyboardUpFunc(keyUp);
     glutSetKeyRepeat(GLUT_KEY_REPEAT_OFF);
+    glutDisplayFunc(display);
+    glutIdleFunc(emulateLoop);
     glutMainLoop();
 }
 
