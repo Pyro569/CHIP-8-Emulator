@@ -90,9 +90,10 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
         break;
     case 0x2:
         chip8->sp -= 2;
-        chip8->memory[chip8->sp] = ((pc + 2) & 0xFF00) >> 8;
-        chip8->memory[chip8->sp + 1] = (pc + 2) & 0xFF;
-        pc = ((code[0] & 0xf) << 8) | code[1];
+        chip8->memory[chip8->sp] = (pc & 0xFF00) >> 8;
+        chip8->memory[chip8->sp + 1] = pc & 0xFF;
+        uint16_t targ = ((code[0] & 0xf) << 8) | code[1];
+        opbytes = targ - pc;
         break;
     case 0x3:
         printf("JMP    EQ");
