@@ -20,7 +20,6 @@ typedef struct Chip8
     uint16_t sp;
     uint16_t I;
     uint8_t halt;
-    uint8_t *screen;
     uint8_t *memory;
     uint8_t keys[16];
     uint8_t waiting_for_key;
@@ -33,17 +32,39 @@ typedef struct Chip8
 
 Chip8 *_chip8;
 iniSettings *_configuredINI;
+uint8_t screen[64][32];
+
+int isPixelSet(int x, int y)
+{
+    return screen[x % 64][y % 32];
+}
 
 void setPixel(int x, int y)
 {
-    glColor3f(_chip8->_iniSettings.onR, _chip8->_iniSettings.onG, _chip8->_iniSettings.onB);
+    int wrappedX = x % 64;
+    int wrappedY = y % 32;
 
+    // Toggle the pixel state
+    screen[wrappedX][wrappedY] ^= 1;
+
+    if (screen[wrappedX][wrappedY])
+    {
+        // Set pixel color if the pixel is now on
+        glColor3f(_chip8->_iniSettings.onR, _chip8->_iniSettings.onG, _chip8->_iniSettings.onB);
+    }
+    else
+    {
+        // Clear pixel color if the pixel is now off
+        glColor3f(0.0f, 0.0f, 0.0f); // Assuming black is the background color
+    }
+
+    // Render the pixel
     glBegin(GL_POLYGON);
-    glVertex2i(x, y);
-    glVertex2i(x + 1, y);
-    glVertex2i(x + 1, y - 1);
-    glVertex2i(x, y - 1);
-    glVertex2i(x, y);
+    glVertex2i(wrappedX, wrappedY);
+    glVertex2i(wrappedX + 1, wrappedY);
+    glVertex2i(wrappedX + 1, wrappedY - 1);
+    glVertex2i(wrappedX, wrappedY - 1);
+    glVertex2i(wrappedX, wrappedY);
     glEnd();
 
     glFlush();
@@ -79,7 +100,7 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
         break;
     case 0x1:
         printf("JUMP   $%01x%02x", code[0] & 0xf, code[1]);
-        uint16_t target = (memory[pc] << 8 | memory[pc + 1]) & 0x0FFF;
+        uint16_t target = ((code[0] & 0x0F) << 8) | code[1];
         if (target == pc)
         {
             printf("\nINFINITE LOOP  HALTING");
@@ -202,20 +223,25 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
         break;
     case 0xd:
         printf("%-6s V%01X, V%01X, $%01x", "SPRITE", code[0] & 0xf, code[1] >> 4, code[1] & 0xf);
-        int x = chip8->V[code[0] & 0xf];
-        int y = chip8->V[(code[1] & 0xf0) >> 4];
+        uint8_t x = chip8->V[code[0] & 0xf];
+        uint8_t y = chip8->V[(code[1] & 0xf0) >> 4];
+        uint8_t height = code[1] & 0xf;
+        uint8_t pixel;
 
         chip8->V[0xF] = 0;
-        int height = code[1] & 0xf;
         for (int yline = 0; yline < height; yline++)
         {
-            uint8_t pixel = memory[chip8->I + yline];
-            for (int i = 0; i < 8; i++)
+            pixel = chip8->memory[chip8->I + yline];
+            for (int xline = 0; xline < 8; xline++)
             {
-                if (pixel & (0x80 >> i))
+                if ((pixel & (0x80 >> xline)) != 0)
                 {
-                    int screenX = x + i;
-                    int screenY = y + yline + 1;
+                    int screenX = (x + xline) % 64;
+                    int screenY = (y + yline) % 32;
+
+                    if (isPixelSet(screenX, screenY))
+                        chip8->V[0xF] = 1;
+
                     setPixel(screenX, screenY);
                 }
             }
@@ -227,15 +253,11 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
         {
         case 0x9e:
             if (chip8->keys[code[0] & 0xf] == 1)
-            {
-                opbytes += 2;
-            }
+                opbytes = 4;
             break;
         case 0xa1:
             if (chip8->keys[code[0] & 0xf] == 0)
-            {
-                opbytes += 2;
-            }
+                opbytes = 4;
             break;
         }
         break;
@@ -248,8 +270,10 @@ int Emulate(Chip8 *chip8, uint8_t *codebuffer, int pc, unsigned char *memory, in
             break;
         case 0x0a:
             chip8->waiting_for_key = 1;
-            chip8->keyRegister == code[0] & 0xf;
-            pc = 0;
+            chip8->keyRegister = code[0] & 0xf;
+            while (chip8->waiting_for_key == 1)
+            {
+            }
             break;
         case 0x15:
             chip8->delayTimer = code[0] & 0xf;
@@ -373,13 +397,13 @@ void emulateLoop()
     {
         _chip8->pc += Emulate(_chip8, _chip8->memory, _chip8->pc, _chip8->memory, _chip8->pos);
         usleep(1000000 / _chip8->_iniSettings.ispsLimit);
-        _chip8->timeSlept += 1000000 / _chip8->_iniSettings.ispsLimit;
-        if (_chip8->timeSlept % 1000000 == 0)
-        {
-            _chip8->delayTimer -= 60;
-            _chip8->soundTimer -= 60;
-        }
     }
+}
+
+void frameDrawn()
+{
+    _chip8->delayTimer -= 1;
+    _chip8->soundTimer -= 1;
 }
 
 void keyDown(unsigned char key, int x, int y)
@@ -540,6 +564,7 @@ void initWindow(int argc, char **argv)
     glutCreateWindow("Pyro569's Chip-8 Emulator");
     glLoadIdentity();
     glOrtho(0, 64, 32, 0, -1.0, 1.0);
+    glutTimerFunc(1000 / 60, frameDrawn, 0);
     glutKeyboardFunc(keyDown);
     glutKeyboardUpFunc(keyUp);
     glutSetKeyRepeat(GLUT_KEY_REPEAT_OFF);
